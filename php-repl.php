@@ -60,6 +60,33 @@ if ($_POST) {
 	<title>REPL for PHP</title>
 	<?php loadStuff('mvp.css', '<link href="https://unpkg.com/mvp.css" rel="stylesheet" />'); ?>
 	<style>
+		:root.light {
+			--color: #118bee;
+			--color-accent: #118bee15;
+			--color-bg: #fff;
+			--color-bg-secondary: #e9e9e9;
+			--color-link: #118bee;
+			--color-secondary: #920de9;
+			--color-secondary-accent: #920de90b;
+			--color-shadow: #f4f4f4;
+			--color-table: #118bee;
+			--color-text: #000;
+			--color-text-secondary: #999;
+		}
+		:root.dark {
+			--color: #0097fc;
+			--color-accent: #0097fc4f;
+			--color-bg: #333;
+			--color-bg-secondary: #555;
+			--color-link: #0097fc;
+			--color-secondary: #e20de9;
+			--color-secondary-accent: #e20de94f;
+			--color-shadow: #bbbbbb20;
+			--color-table: #0097fc;
+			--color-text: #f7f7f7;
+			--color-text-secondary: #aaa;
+		}
+
 		header { padding:1rem; }
 		h1, h2 { margin:0; }
 		main { padding:1rem; }
@@ -80,11 +107,14 @@ if ($_POST) {
 		#history a { position:absolute; right:0; }
 		#history i { padding: 2px 8px; }
 		.btn-clear-history { top:-5px; }
+		#btn-theme { position:absolute; right:0; top:0; }
+		#btn-theme i { padding:2px 8px; }
 	</style>
 </head>
 <body>
 	<header>
 		<h1>REPL for PHP</h1>
+		<a href="#" id="btn-theme"><i>Dark Mode</i></a>
 	</header>
 	<main>
 		<section>
@@ -143,6 +173,7 @@ if ($_POST) {
 		<?php loadStuff('ace.min.js', '<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.13/ace.min.js" integrity="sha512-jB1NOQkR0yLnWmEZQTUW4REqirbskxoYNltZE+8KzXqs9gHG5mrxLR5w3TwUn6AylXkhZZWTPP894xcX/X8Kbg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'); ?>
 		<?php loadStuff('ext-language_tools.min.js', '<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.13/ext-language_tools.min.js" integrity="sha512-S7Whi8oQAQu/MK6AhBWufIJIyOvqORj+/1YDM9MaHeRalsZjzyYS7Usk4fsh+6J77PUhuk5v/BxaMDXRdWd1KA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'); ?>
 		<?php loadStuff('theme-sqlserver.min.js', '<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.13/theme-sqlserver.min.js" integrity="sha512-5/Pr8klgzFtEe+UtAJ6x7r1N1FCvMM/z7iduB1HIz7YaOGZyRlaAXZGUSuU2bzTW7fSlvfFsiFIVBDyoEbvlJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'); ?>
+		<?php loadStuff('theme-dracula.min.js', '<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.13/theme-dracula.min.js" integrity="sha512-spJzhyfxwWqVa1Tab7js2JKLQD6V5Q1Bsd5QQCJ14b7uw4bOoIPSvR9skHgHNuf2c9AIWR28EzhqvCuc24hUnA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'); ?>
 		<?php loadStuff('mode-php.min.js', '<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.13/mode-php.min.js" integrity="sha512-bHkP9bEx5NadBxlEYjyfopFP1PiC+x70XWiZ5laCCCVfp/+tSSiKidMLfsBAJYcX2AEuDq+o/gdxsyInslP6OQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'); ?>
 		<?php loadStuff('snippets/php.min.js', '<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.13/snippets/php.min.js" integrity="sha512-BONX43FZNR4rCdkEiUtqmRScNav4lyEeJCBNUowoLR8OG0HvQh5Zst1IL/Jg+/ymUNzQOtmEWMFjhOvRxxtc9w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'); ?>
 	<?php endif ?>
@@ -213,7 +244,35 @@ if ($_POST) {
 					}
 				}
 			});
+
+			$('#btn-theme').on('click', function(e) {
+				e.preventDefault();
+				changeColorScheme();
+			})
+
+			// detect color scheme
+			if (window.matchMedia) {
+				var checkDark = window.matchMedia('(prefers-color-scheme: dark)');
+				checkDark.addListener(function(e) {
+					changeColorScheme(e.matches ? 'dark' : 'light');
+				});
+				if (checkDark.matches) {
+					changeColorScheme('dark');
+				}
+			}
 		});
+
+		function changeColorScheme(scheme) {
+			if ((scheme && scheme === 'light') || $(document.documentElement).hasClass('dark')) {
+				$(document.documentElement).removeClass('dark').addClass('light');
+				REPL.editor.setTheme('ace/theme/sqlserver');
+				$(this).find('i').html('Light Mode');
+			} else {
+				$(document.documentElement).removeClass('light').addClass('dark');
+				REPL.editor.setTheme('ace/theme/dracula');
+				$(this).find('i').html('Dark Mode');
+			}
+		}
 
 		var REPL = {
 			editor : null,
