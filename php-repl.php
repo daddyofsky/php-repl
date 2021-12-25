@@ -7,9 +7,11 @@
  */
 
 // setting
+$currentVersion = implode('.', array_slice(explode('.', PHP_VERSION), 0, 2));
 $useEditor = !isset($_REQUEST['editor']) || $_REQUEST['editor'];
 $allowIp = array();
-$phpCLI = array(
+$phpVersion = array(
+	'web' => '',
 	'5.3' => '/usr/local/bin/php53',
 	'5.4' => '/usr/local/bin/php54',
 	'5.6' => '/usr/local/bin/php56',
@@ -19,7 +21,7 @@ $phpCLI = array(
 	'8.1' => '/usr/local/bin/php81',
 );
 
-$Repl = new REPL($phpCLI);
+$Repl = new REPL($phpVersion);
 if (!$Repl->hasAuth($allowIp)) {
 	echo 'Access Denied!';
 	exit;
@@ -36,9 +38,7 @@ if (isset($_GET['download'])) {
 	exit;
 }
 
-$currentVersion = implode('.', array_slice(explode('.', PHP_VERSION), 0, 2));
-$version = !empty($_POST['version']) && is_array($_POST['version']) ? $_POST['version'] : array($currentVersion);
-
+$version = !empty($_POST['version']) && is_array($_POST['version']) ? $_POST['version'] : array('web');
 // post ajax
 if ($_POST) {
 	$output  = array();
@@ -99,6 +99,13 @@ if ($_POST) {
 		hr { margin:2rem 0; }
 		input[type="checkbox"] + label { margin-right:10px; }
 		#btn-history, #btn-reset { float:right; margin-left:8px; }
+
+		#print header { position:relative; width:797px; }
+		#print aside { width:70%; margin-top:0; }
+		#print aside iframe { width:100%; min-height:50px; border:0 none; }
+		.btn-toggle-html { position:absolute; top:9px; right:8px; }
+		.btn-toggle-html i { padding: 2px 8px; }
+
 		#history, #history_sample, #sample { display:none; }
 		#history_list { width:797px; }
 		#history_list code { max-height:100px; overflow:auto; cursor:pointer; }
@@ -122,13 +129,15 @@ if ($_POST) {
 				<label>Version</label>
 				<?php if ($versions = $Repl->getVersionList()): ?>
 					<?php if (count($versions) > 1): ?>
-				<input type="checkbox" id="version-all"><label for="version-all">All</label>
+						<input type="checkbox" id="version-all"><label for="version-all">All</label>
 					<?php endif ?>
 					<?php foreach ($versions as $v): ?>
-				<input type="checkbox" id="version<?=$v?>" name="version[]" value="<?=$v?>"><label for="version<?=$v?>"><?=$v?></label>
+						<?php if ($v === 'web'): ?>
+							<input type="checkbox" id="version-web" name="version[]" value="<?=$v?>"><label for="version-web">Web (<?=$currentVersion?>)</label>
+						<?php else: ?>
+							<input type="checkbox" id="version<?=$v?>" name="version[]" value="<?=$v?>"><label for="version<?=$v?>"><?=$v?></label>
+						<?php endif ?>
 					<?php endforeach ?>
-				<?php else: ?>
-				<input type="checkbox" id="version<?=$currentVersion?>" name="version[]" value="<?=$currentVersion?>"><label for="version<?=$currentVersion?>"><?=$currentVersion?></label>
 				<?php endif ?>
 
 				<label for="code">Code</label>
@@ -162,7 +171,9 @@ if ($_POST) {
 			<section>
 				<header>
 					<h2></h2>
+					<a href="#" class="btn-toggle-html"><i>View</i></a>
 				</header>
+				<aside style="display:none;"><iframe></iframe></aside>
 				<pre><code></code></pre>
 			</section>
 		</div>
@@ -186,7 +197,7 @@ if ($_POST) {
 			$('#version-all').on('click', function() {
 				var checked = $(this).prop('checked');
 				$(this).nextAll(':checkbox').prop('checked', checked);
-				$('input[name="version[]"][value="' + <?=$currentVersion?> + '"]').prop('checked', true);
+				$('input[name="version[]"][value="current"]').prop('checked', true);
 			});
 
 			REPL.initEditor();
@@ -324,9 +335,23 @@ if ($_POST) {
 				}
 			},
 			printOne : function(version, output) {
-				$('#sample').clone(true).removeAttr('id')
+				if (version === 'web') {
+					version = 'Web (<?=$currentVersion?>)';
+				}
+				var a = $('#sample').clone(true).removeAttr('id')
 					.find('h2').text(version).end()
 					.find('code').text(output).end()
+					.find('.btn-toggle-html').on('click', function(e) {
+						e.preventDefault();
+						var $iframe = $(this).parent().next('aside').toggle().find('iframe');
+						if ($iframe.prop('init') === undefined) {
+							$iframe.contents().find('body').html(output).on('load', function() {
+								console.log('load');
+								$iframe.prop('init', 1).height($(this).height() + 30);
+							}).trigger('load');
+						}
+						$(this).find('i').text($iframe.is(':visible') ? 'Hide' : 'View');
+					}).end()
 					.appendTo('#print');
 			},
 			error : function(msg) {
@@ -471,10 +496,15 @@ class REPL
 		}
 
 		ob_start();
-		if ($this->version && isset($this->versions[$this->version])) {
-			passthru($this->versions[$this->version] . ' -r ' . escapeshellarg($code));
-		} else {
-			eval($code);
+		try {
+			if ($this->version && !empty($this->versions[$this->version])) {
+				passthru($this->versions[$this->version] . ' -r ' . escapeshellarg($code));
+			} else {
+				// TODO : error hander
+				eval($code);
+			}
+		} catch (Exception $e) {
+			// ignore
 		}
 
 		if ($output) {
