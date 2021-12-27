@@ -317,16 +317,21 @@ if ($_POST) {
 				});
 			},
 			run : function(form) {
-				$.post(location.href, $(form).serialize(), function(r) {
-					REPL.print(r);
-				}, 'json');
+				$.ajax({
+					url: location.href,
+					type: 'POST',
+					dataType: 'json',
+					data: $(form).serialize(),
+					success: function(r) {
+						REPL.print(r);
+					},
+					error: function(r) {
+						REPL.error(r.responseText || 'No Result');
+					}
+				});
 			},
 			print : function(r) {
 				$('#print').html('').show();
-				if (!r) {
-					this.error('No Result');
-					return;
-				}
 				this.save($(this.object).val());
 				for (var version in r) {
 					if (r.hasOwnProperty(version)) {
